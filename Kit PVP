@@ -1,0 +1,100 @@
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class KitPlugin implements CommandExecutor {
+
+    private final Map<String, Kit> kits = new HashMap<>();
+    private final Map<Player, Long> cooldowns = new HashMap<>();
+
+    public KitPlugin() {
+        // Define and register kits
+        kits.put("starter", new Kit("Starter Kit", 3600, 1, new ItemStack(Material.DIAMOND_SWORD, 1), new ItemStack(Material.COOKED_BEEF, 16)));
+        // Add more kits here
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("Only players can use this command.");
+            return true;
+        }
+
+        Player player = (Player) sender;
+
+        if (command.getName().equalsIgnoreCase("kit")) {
+            if (args.length == 1) {
+                String kitName = args[0].toLowerCase();
+
+                if (kits.containsKey(kitName)) {
+                    Kit kit = kits.get(kitName);
+
+                    if (hasCooldownExpired(player, kitName, kit.getCooldown())) {
+                        giveKit(player, kit);
+                        setCooldown(player, kitName);
+                    } else {
+                        player.sendMessage("You must wait before using this kit again.");
+                    }
+                } else {
+                    player.sendMessage("Unknown kit. Available kits: " + String.join(", ", kits.keySet()));
+                }
+            } else {
+                player.sendMessage("Usage: /kit <kitName>");
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean hasCooldownExpired(Player player, String kitName, int cooldownSeconds) {
+        long currentTime = System.currentTimeMillis() / 1000;
+        long lastUseTime = cooldowns.getOrDefault(player, 0L);
+
+        return (currentTime - lastUseTime) >= cooldownSeconds;
+    }
+
+    private void setCooldown(Player player, String kitName) {
+        cooldowns.put(player, System.currentTimeMillis() / 1000);
+    }
+
+    private void giveKit(Player player, Kit kit) {
+        player.getInventory().addItem(kit.getItems());
+        player.sendMessage("You received the " + kit.getName() + "!");
+    }
+
+    private static class Kit {
+        private final String name;
+        private final int cooldown;
+        private final int uses;
+        private final ItemStack[] items;
+
+        public Kit(String name, int cooldown, int uses, ItemStack... items) {
+            this.name = name;
+            this.cooldown = cooldown;
+            this.uses = uses;
+            this.items = items;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public int getCooldown() {
+            return cooldown;
+        }
+
+        public int getUses() {
+            return uses;
+        }
+
+        public ItemStack[] getItems() {
+            return items;
+        }
+    }
+}
